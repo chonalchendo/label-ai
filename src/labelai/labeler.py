@@ -77,28 +77,25 @@ async def label_dataset(
         pd.DataFrame: Original dataframe with added 'label' column
     """
     print(f"[bold]Labeling {len(df)} records...[/bold]\n")
-    
+
     # Create tasks for all records
-    tasks = [
-        label_record(text, labels, model, client) 
-        for text in df[text_column]
-    ]
-    
+    tasks = [label_record(text, labels, model, client) for text in df[text_column]]
+
     # Await all tasks to complete
     results = await asyncio.gather(*tasks)
-    
+
     # Add labels to dataframe
     df["label"] = [r.label for r in results]
-    
+
     # Calculate totals
     total_cost = sum(r.cost for r in results)
     total_tokens = sum(r.input_tokens + r.output_tokens for r in results)
-    
+
     # Simple cost summary
-    print(f"\n[green]✓ Complete![/green]")
+    print("\n[green]✓ Complete![/green]")
     print(f"Total tokens: {total_tokens:,}")
     print(f"Total cost: ${total_cost:.4f}")
     print(f"Average per record: ${total_cost / len(df):.6f}")
     print(f"Projected per 1,000: ${(total_cost / len(df) * 1000):.2f}")
-    
+
     return df

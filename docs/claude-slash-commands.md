@@ -8,7 +8,7 @@ Claude Code subagents are specialized tools designed to handle complex, multi-st
 - **Location**: `.claude/agents/memory-bank-synchronizer.md`
 - **Key Responsibilities**:
   - Pattern documentation synchronization
-  - Architecture decision updates  
+  - Architecture decision updates
   - Technical specification alignment
   - Implementation status tracking
   - Code example freshness validation
