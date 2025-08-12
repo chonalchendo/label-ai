@@ -42,7 +42,7 @@ When converting slash commands, ensure proper argument handling for dynamic inpu
 # Basic usage with file input
 /comprehensive-review file_path="@src/main.py" scope="security,performance"
 
-# Advanced usage with multiple parameters  
+# Advanced usage with multiple parameters
 /comprehensive-review file_path="@codebase/" scope="all" format="detailed" audience="technical" priority="comprehensive" context="Production deployment review"
 
 # Quick analysis with minimal scope
@@ -96,7 +96,7 @@ Security Analysis (10 min) � Performance Analysis (10 min) � Quality Analysi
 
 AFTER (Parallel Subagents):
 Phase 1: Security Subagents A,B,C (10 min parallel)
-Phase 2: Performance Subagents A,B,C (10 min parallel) 
+Phase 2: Performance Subagents A,B,C (10 min parallel)
 Phase 3: Quality Subagents A,B (8 min parallel)
 Synthesis: Consolidate findings (5 min)
 Total: ~15 minutes (50% faster + better coverage)
@@ -111,22 +111,22 @@ Total: ~15 minutes (50% faster + better coverage)
 ```json
 [
   {"id": "setup_analysis", "content": "Record start time and initialize analysis for {file_path}", "status": "pending", "priority": "high"},
-  
+
   // Conditional Parallel Groups Based on {scope} Parameter
   // If scope includes "security" or "all":
   {"id": "security_auth", "content": "Security Analysis of {file_path} - Authentication & Validation (Subagent A)", "status": "pending", "priority": "high", "parallel_group": "security", "condition": "security in {scope}"},
   {"id": "security_tools", "content": "Security Analysis of {file_path} - Tool Isolation & Parameters (Subagent B)", "status": "pending", "priority": "high", "parallel_group": "security", "condition": "security in {scope}"},
   {"id": "security_protocols", "content": "Security Analysis of {file_path} - Protocols & Transport (Subagent C)", "status": "pending", "priority": "high", "parallel_group": "security", "condition": "security in {scope}"},
-  
+
   // If scope includes "performance" or "all":
   {"id": "performance_complexity", "content": "Performance Analysis of {file_path} - Algorithmic Complexity (Subagent A)", "status": "pending", "priority": "high", "parallel_group": "performance", "condition": "performance in {scope}"},
   {"id": "performance_io", "content": "Performance Analysis of {file_path} - I/O Patterns & Async (Subagent B)", "status": "pending", "priority": "high", "parallel_group": "performance", "condition": "performance in {scope}"},
   {"id": "performance_memory", "content": "Performance Analysis of {file_path} - Memory & Concurrency (Subagent C)", "status": "pending", "priority": "high", "parallel_group": "performance", "condition": "performance in {scope}"},
-  
+
   // If scope includes "quality" or "architecture" or "all":
   {"id": "quality_patterns", "content": "Quality Analysis of {file_path} - Code Patterns & SOLID (Subagent A)", "status": "pending", "priority": "high", "parallel_group": "quality", "condition": "quality in {scope}"},
   {"id": "architecture_design", "content": "Architecture Analysis of {file_path} - Modularity & Interfaces (Subagent B)", "status": "pending", "priority": "high", "parallel_group": "quality", "condition": "architecture in {scope}"},
-  
+
   // Sequential Dependencies
   {"id": "synthesis_integration", "content": "Synthesis & Integration - Consolidate findings for {file_path}", "status": "pending", "priority": "high", "depends_on": ["security", "performance", "quality"]},
   {"id": "report_generation", "content": "Generate {format} report for {audience} - Analysis of {file_path}", "status": "pending", "priority": "high"},
@@ -190,7 +190,7 @@ Task Prompt: "Analyze security vulnerabilities focusing on:
 
 Provide specific findings with file:line references and actionable recommendations."
 
-### Phase 2: Performance Analysis (Task-Based)  
+### Phase 2: Performance Analysis (Task-Based)
 **TodoWrite**: Mark "security_analysis" completed, "performance_analysis" as in_progress
 **Task Delegation**: Use Task tool with performance focus:
 
@@ -238,7 +238,7 @@ Provide complexity metrics and specific refactoring recommendations with example
 **Security Domain Subagents:**
 ```markdown
 Subagent A Focus: Authentication, validation, credential management
-Subagent B Focus: Tool isolation, parameter security, privilege boundaries  
+Subagent B Focus: Tool isolation, parameter security, privilege boundaries
 Subagent C Focus: Protocol security, transport validation, message integrity
 ```
 
@@ -270,7 +270,7 @@ Subagent D: Security & utilities (security/, gemini_utils.py, monitoring.py)
 **Thematic Parallel Analysis:**
 ```markdown
 Subagent A: Error handling patterns across all modules
-Subagent B: Configuration management across all modules  
+Subagent B: Configuration management across all modules
 Subagent C: Performance bottlenecks across all modules
 Subagent D: Security patterns across all modules
 ```
@@ -290,11 +290,11 @@ Task Prompt: "Apply systematic verification frameworks to evaluate the comprehen
 
 Focus on:
 1. **Technical Accuracy**: Cross-reference report findings with actual implementation
-2. **Transport Awareness**: Verify recommendations suit specific architecture  
+2. **Transport Awareness**: Verify recommendations suit specific architecture
 3. **Framework Application**: Confirm systematic methodology application
 4. **Actionability**: Validate file:line references and concrete examples
 
-**PROGRESSIVE VERIFICATION**: 
+**PROGRESSIVE VERIFICATION**:
 - Verify security findings accuracy through targeted code examination
 - Verify performance analysis completeness through key module review
 - Verify quality assessment validity through pattern analysis
@@ -379,7 +379,7 @@ CRITICAL: Never exceed 5 files per Task operation
 
 **Consolidation Process:**
 1. **Cross-Reference Security Findings**: Integrate auth + tools + protocol findings
-2. **Performance Bottleneck Mapping**: Combine complexity + I/O + memory analysis  
+2. **Performance Bottleneck Mapping**: Combine complexity + I/O + memory analysis
 3. **Quality Pattern Recognition**: Merge code patterns + architecture findings
 4. **Cross-Domain Issue Identification**: Find issues spanning multiple domains
 5. **Priority Matrix Generation**: Impact vs Effort analysis across all findings
@@ -543,15 +543,15 @@ Now, apply this framework to convert the original slash command file provided in
    ### Phase 1: Security Analysis
    **TodoWrite**: Mark "security_analysis" as in_progress
    **Task Delegation**: Use Task tool with focused analysis:
-   
+
    Task Description: "Security Analysis of Target Codebase"
    Task Prompt: "Analyze security focusing on [specific areas]
-   
+
    **CONTEXT MANAGEMENT**: Analyze only 3-5 key files:
    - [File 1] (specific purpose)
    - [File 2-3] (specific modules)
    - [File 4-5] (specific handlers)
-   
+
    Provide findings with file:line references."
    ```
 
@@ -559,14 +559,14 @@ Now, apply this framework to convert the original slash command file provided in
    ```markdown
    ### GEMINI VERIFICATION (Task-Based)
    **Task Delegation**: Use Task tool for verification:
-   
+
    Task Description: "Gemini Verification of Analysis Report"
    Task Prompt: "Verify analysis accuracy using progressive examination
-   
-   **PROGRESSIVE VERIFICATION**: 
+
+   **PROGRESSIVE VERIFICATION**:
    - Verify findings through targeted code review
    - Cross-reference specific sections progressively
-   
+
    Report file: {report_file_path}"
    ```
 
@@ -574,10 +574,10 @@ Now, apply this framework to convert the original slash command file provided in
    ```markdown
    **CONTEXT MANAGEMENT RULES**:
    - Maximum 5 files per Task operation
-   - Use Task tool for all analysis phases  
+   - Use Task tool for all analysis phases
    - Progressive analysis through Task boundaries
    - Fresh context for each Task operation
-   
+
    **AVOID**: @file1 @file2 @file3... bulk loading patterns
    **USE**: Task delegation with strategic file selection
    ```

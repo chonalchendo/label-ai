@@ -90,7 +90,7 @@ Provide actionable summaries:
 
 ### Core Principles (from CoD paper):
 1. **Abstract contextual noise** - Remove names, descriptions, explanations
-2. **Focus on operations** - Highlight calculations, transformations, logic flow  
+2. **Focus on operations** - Highlight calculations, transformations, logic flow
 3. **Per-step token budget** - Max \(10\) words per reasoning step (prefer \(5\) words)
 4. **Symbolic notation** - Use math/logic symbols or compact tokens over verbose text
 
@@ -104,7 +104,7 @@ Goal→Keywords→Scope
 #### Phase 2: Search Execution (≤10 tokens/step)
 Tool[params]→Count→Paths
 - Glob[pattern]→n files
-- Grep[regex]→m matches  
+- Grep[regex]→m matches
 - Read[file:lines]→logic
 
 #### Phase 3: Synthesis (≤15 tokens)
@@ -224,7 +224,7 @@ Target→Glob[pattern]→n→Grep[name]→file:line→signature
 ```
 Example: `Auth→Glob[*auth*]ₒ3→Grep[login]→auth.ts:45→async(user,pass):token`
 
-Template 2: Bug Investigation  
+Template 2: Bug Investigation
 ```
 Error→Trace→File:Line→Cause→Fix
 ```
@@ -233,7 +233,7 @@ Example: `NullRef→stack→pay.ts:89→!validate→add:if(obj?.prop)`
 Template 3: Architecture Analysis
 ```
 Pattern→Structure→{Components}→Relations
-```  
+```
 Example: `MVC→src/*→{ctrl,svc,model}→ctrl→svc→model→db`
 
 Template 4: Dependency Trace

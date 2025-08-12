@@ -3,7 +3,7 @@
 ⚠️ **CRITICAL: THIS IS AN ANALYSIS-ONLY TASK** ⚠️
 ```
 DO NOT MODIFY ANY CODE FILES
-DO NOT CREATE ANY TEST FILES  
+DO NOT CREATE ANY TEST FILES
 DO NOT EXECUTE ANY REFACTORING
 ONLY ANALYZE AND GENERATE A REPORT
 ```
@@ -127,7 +127,7 @@ Based on the discovery, create a recommendation table:
 ```
 # Discover project structure
 Task: "Analyze project structure and identify main components"
-Glob: "**/*.{py,js,ts,java,go,rb,php,cs,cpp,rs}" 
+Glob: "**/*.{py,js,ts,java,go,rb,php,cs,cpp,rs}"
 Grep: "class|function|def|interface|struct" for architecture patterns
 
 # Find configuration files
@@ -753,7 +753,7 @@ Backup location: backup_temp/[files]
 ### A. Complexity Analysis Details
 **Function-Level Metrics**:
 ```
-function_name(params): 
+function_name(params):
   - Physical Lines: X
   - Logical Lines: Y
   - Cyclomatic: Z
@@ -810,7 +810,7 @@ class ProcessContext:
 ```
 
 ---
-*This report serves as a comprehensive guide for refactoring execution. 
+*This report serves as a comprehensive guide for refactoring execution.
 Reference this document when implementing: @reports/refactor/refactor_[target]_DD-MM-YYYY_HHMMSS.md*
 ```
 
@@ -863,14 +863,14 @@ Example: `reports/refactor/refactor_mcp_server_14-07-2025_143022.md`
 
 ---
 
-**REFACTORING ANALYSIS MISSION**: 
+**REFACTORING ANALYSIS MISSION**:
 1. Analyze the specified file(s) for refactoring opportunities
 2. Create a comprehensive refactoring plan (DO NOT EXECUTE)
 3. Write the plan to: `reports/refactor/refactor_[target]_DD-MM-YYYY_HHMMSS.md`
 
 Focus on safety, incremental progress, and maintainability. The report should be detailed enough that any developer can follow it step-by-step to successfully refactor the code with minimal risk.
 
-🚨 **FINAL REMINDER**: 
+🚨 **FINAL REMINDER**:
 - This is ANALYSIS ONLY - do not modify any code
 - Your ONLY output should be the report file in the reports directory
 - Use the Write tool to create the report file
