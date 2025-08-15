@@ -19,7 +19,7 @@ if __name__ == "__main__":
     )
 
     # Define system prompt for classification task
-    system_prompt = """You are a sentiment classifier. 
+    system_prompt = """You are a sentiment classifier.
     Classify the given text as one of the provided labels.
     Respond with only the classification label."""
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     print(f"Output Tokens: {cost_estimate.output_tokens:,}")
     print(f"Number of rows: {cost_estimate.num_rows}")
     print(f"Average input tokens per row: {cost_estimate.avg_input_tokens_per_row:.1f}")
-    print(f"Breakdown:")
+    print("Breakdown:")
     print(f"  - Input cost: ${cost_estimate.input_cost_usd}")
     print(f"  - Output cost: ${cost_estimate.output_cost_usd}")
 
