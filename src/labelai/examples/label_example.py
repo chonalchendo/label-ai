@@ -10,11 +10,16 @@ from labelai import label_dataset
 
 load_dotenv()
 
-MODEL = "gpt-4o-mini"
+MODEL = [
+    "openai/gpt-4o-mini",
+    "meta-llama/llama-4-maverick",
+    "deepseek/deepseek-chat-v3.1",
+]
 LABELS = ["bug", "feature", "question"]
+BASE_URL = "https://openrouter.ai/api/v1"
 
 if __name__ == "__main__":
-    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = AsyncOpenAI(base_url=BASE_URL, api_key=os.getenv("OPENROUTER_API_KEY"))
 
     # Create test dataset
     test_data = pd.DataFrame(
@@ -35,3 +40,4 @@ if __name__ == "__main__":
     # Show results
     print("\n[bold]Results:[/bold]")
     print(labeled_df[["message", "label"]])
+    print(labeled_df)
