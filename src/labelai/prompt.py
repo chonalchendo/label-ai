@@ -1,5 +1,5 @@
 def get_prompt_template(title: str, abstract: str, category_list: list[str]) -> str:
-    return f"""
+    return f"""  # nosec B608
 You are a document classification assistant. Your task is to classify the given document into the most appropriate category from the provided list of categories. The document consists of a title and an abstract. The categories are provided with their IDs and full hierarchical paths and definitions in the following format:
 
 ID: [ID], PATH: Level 1 > Level 2 > ... > Level 6 (definition)

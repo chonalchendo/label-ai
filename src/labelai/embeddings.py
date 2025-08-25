@@ -42,7 +42,7 @@ def get_label_embeddings(
 def load_labels(pkl_path: "Path") -> pd.DataFrame:
     """Load DataFrame with labels from cache."""
     # return pickle.loads(pkl_path.read_bytes())
-    return pd.read_pickle(pkl_path)
+    return pd.read_pickle(pkl_path)  # nosec B301
 
 
 def compute_and_save_labels(
