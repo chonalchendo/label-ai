@@ -16,7 +16,7 @@ from rich.progress import (
 from rich.table import Table
 
 PRICING = {
-    "gpt-4o-mini": {
+    "openai/gpt-4o-mini": {
         "input": 0.15,
         "cached_input": 0.075,
         "output": 0.60,
