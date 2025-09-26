@@ -1,167 +1,173 @@
 import asyncio
+import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Sequence
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from openai import AsyncOpenAI
 from rich import print
 
-from labelai.cost import calculate_cost
-
 
 @dataclass
-class LabelResult:
-    text: str
-    label: str
-    model: str
-    input_tokens: int | None
-    output_tokens: int | None
-    cost: float | None
+class LabelingTask:
+    """Represents a single document labeling task."""
 
+    record: dict[str, Any]
+    template_path: Path
+    context_columns: list[str]
+    label_options: list[tuple[str, str]]  # [(code, label), ...]
 
-async def majority_vote_label(
-    text: str,
-    labels: list[str],
-    models: Sequence[str],
-    client: AsyncOpenAI,
-    threshold: float = 0.5,
-) -> list[LabelResult]:
-    tasks = [
-        label_record(text=text, labels=labels, model=model, client=client)
-        for model in models
-    ]
-    results = await asyncio.gather(*tasks)
+    def create_prompt(self) -> str:
+        """Generate the prompt for this specific record."""
+        template = self.template_path.read_text()
 
-    counter = Counter(result.label for result in results)
+        # Extract context values from record
+        context = {col: self.record.get(col, "") for col in self.context_columns}
 
-    majority_label = None
-    top_label, freq = counter.most_common(1)[0]
-
-    if freq >= threshold:
-        majority_label = top_label
-
-    # Add majority vote result to the list
-    results.append(
-        LabelResult(
-            text=text,
-            label=majority_label,
-            model="majority_vote",
-            input_tokens=sum(r.input_tokens for r in results if r.input_tokens),
-            output_tokens=sum(r.output_tokens for r in results if r.output_tokens),
-            cost=sum(r.cost for r in results if r.cost),
+        # Format label options
+        context["label_list"] = "\n".join(
+            f"ID: {code}, PATH: {label}" for code, label in self.label_options
         )
-    )
 
-    return results
+        return template.format(**context)
+
+    def get_valid_codes(self) -> list[str]:
+        """Return list of valid label codes."""
+        return [code for code, _ in self.label_options]
 
 
-async def label_record(
-    text: str, labels: list[str], model: str, client: AsyncOpenAI
-) -> LabelResult:
-    """Label a single text record using an LLM.
-    Args:
-        text (str): The text to classify
-        labels (list[str]): List of possible label categories
-        model (str): Name of the OpenAI model to use
-        client (AsyncOpenAI): Initialized OpenAI async client
-    Returns:
-        LabelResult: Contains the label, token usage, and cost information
-    """
-    prompt = f"Classify into {labels}: {text}. Output must only contain the label."
-    response = await client.chat.completions.create(
-        model=model, messages=[{"role": "user", "content": prompt}]
-    )
-    label = response.choices[0].message.content
-    total_tokens = response.usage.total_tokens
-    input_tokens = response.usage.prompt_tokens
-    output_tokens = response.usage.completion_tokens
-    cost = calculate_cost(model, input_tokens, output_tokens)
-    # Rich printing for debugging
-    print(f"[green]Label:[/green] {label}")
-    print(
-        f"[blue]Tokens:[/blue] {input_tokens} in + {output_tokens} out = {total_tokens} total"
-    )
-    print(f"[yellow]Cost:[/yellow] ${cost:.6f}")
-    return LabelResult(
-        text=text,
-        label=label,
-        model=model,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        cost=cost,
-    )
+class LabelingClient:
+    """Handles all LLM interactions for document labeling."""
+
+    def __init__(self, client: AsyncOpenAI, models: list[str]):
+        self.client = client
+        self.models = models
+
+    async def get_prediction(self, model: str, prompt: str) -> str:
+        """Get a single prediction from a model."""
+        try:
+            response = await asyncio.wait_for(
+                self.client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                ),
+                timeout=30,
+            )
+
+            # Extract medtop ID from response
+            content = response.choices[0].message.content or ""
+            matches = re.findall(r"medtop:\d+", content)
+            return matches[-1] if matches else "INVALID"
+
+        except Exception as e:
+            print(f"Error with {model}: {e}")
+            return "ERROR"
+
+    async def get_all_predictions(self, task: LabelingTask) -> dict[str, str]:
+        """Get predictions from all models for a single task."""
+        prompt = task.create_prompt()
+
+        predictions = await asyncio.gather(
+            *[self.get_prediction(model, prompt) for model in self.models]
+        )
+
+        return dict(zip(self.models, predictions))
 
 
 async def label_dataset(
     df: pd.DataFrame,
-    text_column: str,
-    labels: list[str],
-    models: Sequence[str],
     client: AsyncOpenAI,
+    models: list[str],
+    template_path: Path,
+    context_columns: list[str],
+    label_column: str = "top_labels",
+    batch_size: int = 10,
 ) -> pd.DataFrame:
-    """Label all records in a dataset and add results as a new column.
-
-    Args:
-        df (pd.DataFrame): Dataset containing text to label
-        text_column (str): Name of the column containing text to classify
-        labels (list[str]): List of possible label categories
-        model (str): Name of the OpenAI model to use
-        client (AsyncOpenAI): Initialized OpenAI async client
-
-    Returns:
-        pd.DataFrame: Original dataframe with added 'label' column
     """
-    print(f"[bold]Labeling {len(df)} records...[/bold]\n")
+    Label an entire dataset using multiple models.
 
-    texts = df[text_column]
-    all_results = []
+    Returns a DataFrame with original data plus model predictions and majority vote.
+    """
+    labeling_client = LabelingClient(client, models)
+    results = []
 
-    if len(models) > 1:
-        tasks = [majority_vote_label(text, labels, models, client) for text in texts]
-        results_lists = await asyncio.gather(*tasks)
+    # Process in batches for rate limiting
+    for i in range(0, len(df), batch_size):
+        batch = df.iloc[i : i + batch_size]
 
-        # Flatten results and organize by model
-        for results_list in results_lists:
-            all_results.extend(results_list[:-1])  # Exclude majority vote for now
+        # Create tasks for this batch
+        tasks = [
+            LabelingTask(
+                record=row.to_dict(),
+                template_path=template_path,
+                context_columns=context_columns,
+                label_options=row[label_column],
+            )
+            for _, row in batch.iterrows()
+        ]
 
-        # Add columns for each model
-        for model in models:
-            model_labels = []
-            for i, text in enumerate(texts):
-                model_result = results_lists[i]
-                model_label = next(
-                    (r.label for r in model_result if r.model == model), None
-                )
-                model_labels.append(model_label)
-            df[f"label_{model}"] = model_labels
+        # Get predictions for all records in batch
+        batch_predictions = await asyncio.gather(
+            *[labeling_client.get_all_predictions(task) for task in tasks]
+        )
 
-        # Add majority vote column
-        df["label"] = [results_list[-1].label for results_list in results_lists]
+        results.extend(batch_predictions)
 
-        # Include majority vote results in all_results for cost calculation
-        for results_list in results_lists:
-            all_results.append(results_list[-1])
-    else:
-        # Create tasks for all records
-        tasks = [label_record(text, labels, models[0], client) for text in texts]
-        # Await all tasks to complete
-        results = await asyncio.gather(*tasks)
-        all_results = results
-        # Add labels to dataframe
-        df["label"] = [r.label for r in results]
+        print(f"Processed {min(i + batch_size, len(df))}/{len(df)} records")
+        await asyncio.sleep(1)  # Rate limiting
 
-    # Calculate totals
-    total_cost = sum(r.cost for r in all_results if r.cost)
-    total_tokens = sum(
-        (r.input_tokens or 0) + (r.output_tokens or 0) for r in all_results
+    # Combine original data with predictions
+    return format_results(df[context_columns], results, models)
+
+
+def format_results(
+    original_df: pd.DataFrame, predictions: list[dict[str, str]], models: list[str]
+) -> pd.DataFrame:
+    """Format predictions into a clean DataFrame."""
+    result_df = original_df.copy()
+
+    # Add individual model predictions
+    for model in models:
+        result_df[f"{model}_prediction"] = [
+            pred.get(model, "ERROR") for pred in predictions
+        ]
+
+    # Calculate majority vote
+    result_df["majority_vote"] = result_df.apply(
+        lambda row: calculate_majority_vote(
+            [row[f"{model}_prediction"] for model in models]
+        ),
+        axis=1,
     )
 
-    # Simple cost summary
-    print("\n[green]✓ Complete![/green]")
-    print(f"Total tokens: {total_tokens:,}")
-    print(f"Total cost: ${total_cost:.4f}")
-    print(f"Average per record: ${total_cost / len(df):.6f}")
-    print(f"Projected per 1,000: ${(total_cost / len(df) * 1000):.2f}")
+    # Calculate agreement percentage
+    result_df["agreement_pct"] = result_df.apply(
+        lambda row: calculate_agreement(
+            [row[f"{model}_prediction"] for model in models], row["majority_vote"]
+        ),
+        axis=1,
+    )
 
-    return df
+    return result_df
+
+
+def calculate_majority_vote(predictions: list[str]) -> str:
+    """Find the most common valid prediction."""
+    valid_preds = [p for p in predictions if p not in ["ERROR", "INVALID"]]
+    if not valid_preds:
+        return "NO_CONSENSUS"
+
+    counts = Counter(valid_preds)
+    return counts.most_common(1)[0][0]
+
+
+def calculate_agreement(predictions: list[str], majority: str) -> float:
+    """Calculate percentage of models that agreed with majority."""
+    if majority == "NO_CONSENSUS":
+        return 0.0
+    valid_preds = [p for p in predictions if p not in ["ERROR", "INVALID"]]
+    if not valid_preds:
+        return 0.0
+    return sum(p == majority for p in valid_preds) / len(valid_preds)
