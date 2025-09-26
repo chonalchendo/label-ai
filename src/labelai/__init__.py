@@ -5,12 +5,11 @@ from labelai.embeddings import (
     get_label_embeddings,
     load_labels,
 )
-from labelai.labeler import label_dataset, label_record
+from labelai.labeler import label_dataset
 from labelai.prompt import get_prompt_template
 
 __all__ = [
     "label_dataset",
-    "label_record",
     "plan_cost",
     "calculate_cost",
     "load_dataset",
