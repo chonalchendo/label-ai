@@ -1,185 +1,178 @@
+import abc
 import json
 import os
+import typing as T
 from io import BytesIO
 from pathlib import Path
-from typing import Sequence
 
 import httpx
 import kagglehub
-import pandas as pd
+import polars as pl
+import pydantic as pdt
+import torch
 from rich import print
 
-# Columns to select
-TAXONOMY_COLUMNS = [
-    "NewsCode-URI",
-    "NewsCode-QCode (flat)",
-    "Level1/NewsCode",
-    "Level2/NewsCode",
-    "Level3/NewsCode",
-    "Level4/NewsCode",
-    "Level5/NewsCode",
-    "Level6/NewsCode",
-    "Name (en-US)",
-    "Definition (en-US)",
-]
+T_Read = T.TypeVar("T_Read")
+T_Write = T.TypeVar("T_Write")
 
 
-def clean_abstract(text: str) -> str:
-    """Clean the abstract by preserving paragraphs and removing unnecessary newlines within paragraphs."""
-    # Split into paragraphs using double newlines
-    paragraphs = text.split("\n\n")
-    cleaned_paragraphs = []
-    for paragraph in paragraphs:
-        # Replace single newlines with spaces within each paragraph
-        cleaned_paragraph = " ".join(line.strip() for line in paragraph.split("\n"))
-        cleaned_paragraphs.append(cleaned_paragraph)
-    # Join paragraphs back with double newlines
-    return "\n\n".join(cleaned_paragraphs)
+class Reader(
+    abc.ABC, pdt.BaseModel, T.Generic[T_Read], strict=True, frozen=False, extra="forbid"
+):
+    """Base class for all readers."""
+
+    KIND: str
+    path: str
+    columns: T.Sequence[str] | None = None
+
+    @abc.abstractmethod
+    def read(self) -> T_Read:
+        """Read the data from the path."""
+        pass
+
+    def _http_download(self) -> BytesIO:
+        resp = httpx.get(self.path)
+        return BytesIO(resp.content)
+
+    def _kaggle_path(self) -> str:
+        handle_ = "/".join(self.path.split("/")[:-1])
+        file_name = self.path.split("/")[-1]
+        handle = kagglehub.dataset_download(handle_)
+        return os.path.join(handle, file_name)
 
 
-def clean_title(text: str) -> str:
-    """Clean the title by removing extra spaces and joining lines with spaces."""
-    return " ".join(line.strip() for line in text.split("\n"))
+class ExcelReader(Reader[pl.DataFrame]):
+    KIND: T.Literal["excel"] = "excel"
+
+    @T.override
+    def read(self) -> pl.DataFrame:
+        path = self.path
+        if self.path.startswith("https"):
+            path = self._http_download()
+
+        df = pl.read_excel(path, columns=self.columns, read_options={"header_row": 1})
+        print(df)
+        return df
 
 
-def load_dataset(
-    path: str = "Cornell-University/arxiv",
-    file: str = "arxiv-metadata-oai-snapshot.json",
-) -> pd.DataFrame:
-    output_path = Path("data") / file.replace(".json", ".parquet")
+class JSONToDictReader(Reader):
+    KIND: T.Literal["json_dict"] = "json_dict"
 
-    if not output_path.parent.exists():
-        output_path.parent.mkdir()
-
-    if output_path.exists():
-        print(f"Path: {path} exists. Loading dataset.")
-        return pd.read_parquet(output_path)
-
-    path = kagglehub.dataset_download(path)
-
-    # Construct the full path to the JSON file
-    file_path = os.path.join(path, file)
-
-    records = []
-
-    # Open the file and read the first two lines
-    with open(file_path, "r") as file:
-        for line in file:
-            record: dict = json.loads(line)
-            filtered_record = {
-                "id": record.get("id", ""),
-                "title": clean_title(record.get("title", "")),
-                "abstract": clean_abstract(record.get("abstract", "")),
-            }
-            records.append(filtered_record)
-
-    df = pd.DataFrame(records)
-    df.to_parquet(output_path)
-    return df
+    @T.override
+    def read(self) -> dict:
+        with open(self.path, "r") as f:
+            data = json.loads(f.read())
+            return data
 
 
-def load_taxonomy(
-    url: str = "https://www.iptc.org/std/NewsCodes/IPTC-MediaTopic-NewsCodes.xlsx",
-    columns: Sequence[str] = TAXONOMY_COLUMNS,
-) -> list[str]:
-    output_path = Path("data") / "taxonomy_labels.json"
-    if output_path.exists():
-        with open(output_path, "r") as f:
-            taxonomy = json.load(f)
-            return taxonomy
+class JSONReader(Reader[pl.DataFrame]):
+    KIND: T.Literal["json"] = "json"
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # output_dir: str
+    kaggle: bool = False
 
-    # Download the file
-    response = httpx.get(url)
+    @T.override
+    def read(self) -> pl.DataFrame:
+        path = self.path
 
-    # Create a file-like object from the downloaded content
-    excel_data = BytesIO(response.content)
+        # Download and read from Kaggle
+        if self.kaggle:
+            path = self._kaggle_path()
 
-    # Load the spreadsheet, skipping the first row and using the second row as headers
-    df = pd.read_excel(excel_data, skiprows=1)
-    df = df[columns]
+        # Read JSON with Polars (try regular then NDJSON format)
+        try:
+            df = pl.read_json(path)
+        except Exception as e:
+            print(f"Failed to read as regular JSON: {e}")
+            print("Attempting to read as NDJSON (newline-delimited JSON)")
+            df = pl.read_ndjson(path)
 
-    taxonomy = _transform_taxonomy(df)
-
-    with open(output_path, "w") as f:
-        f.write(json.dumps(taxonomy))
-
-    return taxonomy
+        print(df)
+        return df
 
 
-def _transform_taxonomy(df: pd.DataFrame) -> list[str]:
-    level_cols = [f"Level{i}/NewsCode" for i in range(1, 7)]
+class ParquetReader(Reader[pl.DataFrame]):
+    KIND: T.Literal["parquet"] = "parquet"
 
-    path = []
-    leaf_paths = []
-
-    for i in range(df.shape[0]):
-        row = df.iloc[i]
-
-        # Determine the level by finding the non-empty level column
-        non_empty_levels = row[level_cols].notna()
-        if non_empty_levels.sum() != 1:
-            # Skip rows with invalid level data (not exactly one level column filled)
-            continue
-        col = non_empty_levels.idxmax()
-        current_level = level_cols.index(col) + 1  # Level number (1 to 6)
-
-        # Extract the code, name, and definition
-        qcode = row["NewsCode-QCode (flat)"]
-        name = row["Name (en-US)"]
-        definition = row["Definition (en-US)"]
-
-        # Create a tuple for the current element
-        element = (qcode, name, definition)
-
-        # Update the path stack to match the current level
-        while len(path) >= current_level:
-            path.pop()
-        path.append(element)
-
-        is_leaf = _check_is_leaf(
-            df=df, level_cols=level_cols, i=i, current_level=current_level
-        )
-
-        # If it's a leaf, store the current path
-        if is_leaf:
-            # formatted_path = _format_taxonomy(path)
-            leaf_paths.append(path.copy())
-
-    return leaf_paths
+    @T.override
+    def read(self) -> pl.DataFrame:
+        df = pl.read_parquet(self.path)
+        return df
 
 
-def format_taxonomy(path: list[str]) -> str:
-    """
-    Formats a taxonomy path into a string with names separated by '>' and the leaf definition in parentheses.
-    Args:
-        path (list of tuples): Each tuple contains (code, name, definition).
-    Returns:
-        str: Formatted string, e.g., 'name1 > name2 > name3 (definition3)'
-    """
-    names = [element[1] for element in path]
-    joined_names = " > ".join(names)
-    leaf_definition = path[-1][2]
-    return f"{joined_names} ({leaf_definition})"
+class TorchReader(Reader[torch.Tensor]):
+    KIND: T.Literal["torch"] = "torch"
+
+    @T.override
+    def read(self, map_location: T.Optional["torch.device"] = None) -> "torch.Tensor":
+        """Load a PyTorch tensor from a .pt file."""
+        tensor = torch.load(self.path, map_location=map_location)
+        return tensor
 
 
-def _check_is_leaf(
-    df: pd.DataFrame, level_cols: list[str], i: int, current_level: int
-) -> bool:
-    if i == len(df) - 1:
-        return True
+class Writer(
+    abc.ABC,
+    pdt.BaseModel,
+    T.Generic[T_Write],
+    strict=True,
+    frozen=False,
+    extra="forbid",
+):
+    """Base class for all writers."""
 
-    next_row = df.iloc[i + 1]
-    next_non_empty_levels = next_row[level_cols].notna()
+    KIND: str
+    path: str
 
-    if next_non_empty_levels.sum() != 1:
-        return True
+    @abc.abstractmethod
+    def write(self, data: T_Write) -> None:
+        """Write the data to the path."""
+        pass
 
-    next_col = next_non_empty_levels.idxmax()
-    next_level = level_cols.index(next_col) + 1
+    def _ensure_parent_dir(self, output_path: str) -> None:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    if next_level <= current_level:
-        return True
 
-    return False
+class ParquetWriter(Writer[pl.DataFrame]):
+    KIND: T.Literal["parquet"] = "parquet"
+
+    @T.override
+    def write(self, data: pl.DataFrame) -> None:
+        file_ext = self.path.split(".")[-1]
+        if file_ext != "parquet":
+            raise ValueError("File extension is not parquet.")
+
+        self._ensure_parent_dir(self.path)
+        data.write_parquet(self.path)
+
+
+class TorchWriter(Writer[torch.Tensor]):
+    KIND: T.Literal["torch"] = "torch"
+
+    @T.override
+    def write(self, data: "torch.Tensor") -> None:
+        """Save a PyTorch tensor to a .pt file."""
+        self._ensure_parent_dir(self.path)
+        torch.save(data.cpu(), self.path)
+
+
+class CSVWriter(Writer[pl.DataFrame]):
+    KIND: T.Literal["csv"]
+
+    @T.override
+    def write(self, data: pl.DataFrame) -> None:
+        self._ensure_parent_dir(self.path)
+        data.write_csv(self.path)
+
+
+class JSONWriter(Writer):
+    KIND: T.Literal["json"] = "json"
+
+    @T.override
+    def write(self, data: dict) -> None:
+        self._ensure_parent_dir(self.path)
+        with open(self.path, "w") as f:
+            f.write(json.dumps(data))
+
+
+ReaderKind = JSONReader | JSONToDictReader | ExcelReader | ParquetReader | TorchReader
+WriterKind = ParquetWriter | TorchWriter | JSONWriter | CSVWriter
