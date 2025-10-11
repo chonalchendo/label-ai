@@ -84,6 +84,7 @@ async def label_dataset(
     context_columns: list[str],
     label_column: str = "top_labels",
     batch_size: int = 10,
+    majority_threshold: int = 2,
 ) -> pd.DataFrame:
     """
     Label an entire dataset using multiple models.
@@ -119,14 +120,19 @@ async def label_dataset(
         await asyncio.sleep(1)  # Rate limiting
 
     # Combine original data with predictions
-    return format_results(df[context_columns], results, models)
+    return format_results(df[context_columns], results, models, majority_threshold)
 
 
 def format_results(
-    original_df: pd.DataFrame, predictions: list[dict[str, str]], models: list[str]
+    original_df: pd.DataFrame,
+    predictions: list[dict[str, str]],
+    models: list[str],
+    majority_threshold: int,
 ) -> pd.DataFrame:
     """Format predictions into a clean DataFrame."""
     result_df = original_df.copy()
+
+    print(predictions)
 
     # Add individual model predictions
     for model in models:
@@ -137,7 +143,7 @@ def format_results(
     # Calculate majority vote
     result_df["majority_vote"] = result_df.apply(
         lambda row: calculate_majority_vote(
-            [row[f"{model}_prediction"] for model in models]
+            [row[f"{model}_prediction"] for model in models], majority_threshold
         ),
         axis=1,
     )
@@ -153,21 +159,21 @@ def format_results(
     return result_df
 
 
-def calculate_majority_vote(predictions: list[str]) -> str:
+def calculate_majority_vote(predictions: list[str], majority_threshold: int) -> str:
     """Find the most common valid prediction."""
     valid_preds = [p for p in predictions if p not in ["ERROR", "INVALID"]]
     if not valid_preds:
         return "NO_CONSENSUS"
 
     counts = Counter(valid_preds)
-    return counts.most_common(1)[0][0]
+    top_label, freq = counts.most_common(1)[0]
+
+    if freq < majority_threshold:
+        return "NO_CONCENSUS"
+
+    return top_label
 
 
 def calculate_agreement(predictions: list[str], majority: str) -> float:
     """Calculate percentage of models that agreed with majority."""
-    if majority == "NO_CONSENSUS":
-        return 0.0
-    valid_preds = [p for p in predictions if p not in ["ERROR", "INVALID"]]
-    if not valid_preds:
-        return 0.0
-    return sum(p == majority for p in valid_preds) / len(valid_preds)
+    return round(sum(p == majority for p in predictions) / len(predictions), 2)
