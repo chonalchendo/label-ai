@@ -1,0 +1,32 @@
+job:
+  KIND: embedding
+  input_data:
+    KIND: parquet
+    path: data/silver/silver_arxiv_data.parquet
+  input_labels:
+    KIND: parquet
+    path: data/silver/silver_media_labels.parquet
+  input_labels_to_code:
+    KIND: json_dict
+    path: data/silver/silver_media_label_to_code.json
+  input_embeddings:
+    KIND: torch
+    path: data/silver/silver_label_embeddings.pt
+  output_label_embeddings:
+    KIND: torch
+    path: data/silver/silver_label_embeddings.pt
+  output_train_top_labels:
+    KIND: parquet
+    path: data/silver/silver_train_top_labels_df.parquet
+  output_test_top_labels:
+    KIND: parquet
+    path: data/silver/silver_test_top_labels_df.parquet
+
+  # model params
+  model: BAAI/bge-m3
+  # train_size: 20_000
+  train_size: 500
+  test_size: 500
+  random_state: 42
+  shuffle: True
+  
