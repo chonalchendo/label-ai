@@ -1,4 +1,5 @@
 import typing as T
+from pathlib import Path
 
 import omegaconf as oc
 
@@ -53,3 +54,25 @@ def to_object(config: Config, resolve: bool = True) -> object:
         object: conversion of the config to a python object.
     """
     return oc.OmegaConf.to_container(config, resolve=resolve)
+
+
+def load_and_merge_configs(
+    config_files: T.Sequence[Path],
+    extras: T.Sequence[str] | None = None,
+) -> oc.DictConfig:
+    """Load configuration files and merge with extra parameters."""
+    # Parse config files
+    file_configs = [parse_file(str(file)) for file in config_files]
+
+    # Parse extra strings
+    string_configs = []
+    if extras:
+        string_configs = [parse_string(string) for string in extras]
+
+    # Merge all configs
+    config = merge_configs([*file_configs, *string_configs])
+
+    if not isinstance(config, oc.DictConfig):
+        raise RuntimeError("Config is not a dictionary")
+
+    return config
