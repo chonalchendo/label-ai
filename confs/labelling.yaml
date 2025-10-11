@@ -1,0 +1,25 @@
+job:
+  KIND: labelling
+  input_train_top_labels:
+    KIND: parquet
+    path: data/silver/silver_train_top_labels_df.parquet
+  input_test_top_labels:
+    KIND: parquet
+    path: data/silver/silver_test_top_labels_df.parquet
+  output_train_df:
+    KIND: csv 
+    path: data/gold/gold_train_df.csv
+  output_test_df:
+    KIND: csv 
+    path: data/gold/gold_test_df.csv
+
+  base_url: https://openrouter.ai/api/v1
+  models:
+    - "openai/gpt-4o-mini"
+    - "meta-llama/llama-4-maverick"
+    - "deepseek/deepseek-chat-v3.1"
+  template_path: prompts/example_prompt.txt
+  context_columns: ['title', 'abstract']
+  label_column: top_labels
+  batch_size: 10 
+  majority_threshold: 2
