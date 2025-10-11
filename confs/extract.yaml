@@ -1,0 +1,27 @@
+job:
+  KIND: extract
+  data_input:
+    KIND: json
+    path: Cornell-University/arxiv/arxiv-metadata-oai-snapshot.json
+    kaggle: True
+  data_output:
+    KIND: parquet
+    path: data/bronze/bronze_arxiv_data.parquet
+  taxonomy_input:
+    KIND: excel
+    path: https://www.iptc.org/std/NewsCodes/IPTC-MediaTopic-NewsCodes.xlsx
+    columns: [
+      "NewsCode-URI",
+      "NewsCode-QCode (flat)",
+      "Level1/NewsCode",
+      "Level2/NewsCode",
+      "Level3/NewsCode",
+      "Level4/NewsCode",
+      "Level5/NewsCode",
+      "Level6/NewsCode",
+      "Name (en-US)",
+      "Definition (en-US)",
+    ]
+  taxonomy_output:
+    KIND: parquet
+    path: data/bronze/bronze_media_taxonomy.parquet
