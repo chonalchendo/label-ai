@@ -1,0 +1,8 @@
+job:
+  KIND: preprocessing
+  input:
+    KIND: parquet
+    path: data/bronze/bronze_arxiv_data.parquet 
+  output:
+    KIND: parquet
+    path: data/silver/silver_arxiv_data.parquet
