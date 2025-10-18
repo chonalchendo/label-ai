@@ -1,5 +1,7 @@
 job:
   KIND: embedding
+
+  # input parameters
   input_data:
     KIND: parquet
     path: data/silver/silver_arxiv_data.parquet
@@ -12,6 +14,8 @@ job:
   input_embeddings:
     KIND: torch
     path: data/silver/silver_label_embeddings.pt
+
+  # output paramters
   output_label_embeddings:
     KIND: torch
     path: data/silver/silver_label_embeddings.pt
