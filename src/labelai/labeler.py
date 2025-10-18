@@ -109,7 +109,7 @@ async def label_dataset(
         total_batches = (len(df) + batch_size - 1) // batch_size
 
         logger.info(
-            f"Processing batch {batch_num}/{total_batches} (records {i+1}-{min(i + batch_size, len(df))})"
+            f"Processing batch {batch_num}/{total_batches} (records {i + 1}-{min(i + batch_size, len(df))})"
         )
 
         # Create tasks for this batch
