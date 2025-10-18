@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from loguru import logger
 from openai import AsyncOpenAI
 from rich import print
 
@@ -44,6 +45,9 @@ class LabelingClient:
     def __init__(self, client: AsyncOpenAI, models: list[str]):
         self.client = client
         self.models = models
+        logger.info(
+            f"Initialized labeling client with {len(models)} models: {', '.join(models)}"
+        )
 
     async def get_prediction(self, model: str, prompt: str) -> str:
         """Get a single prediction from a model."""
@@ -62,7 +66,7 @@ class LabelingClient:
             return matches[-1] if matches else "INVALID"
 
         except Exception as e:
-            print(f"Error with {model}: {e}")
+            logger.warning(f"Prediction failed for {model}: {e}")
             return "ERROR"
 
     async def get_all_predictions(self, task: LabelingTask) -> dict[str, str]:
@@ -91,12 +95,22 @@ async def label_dataset(
 
     Returns a DataFrame with original data plus model predictions and majority vote.
     """
+    logger.info(
+        f"Starting labeling process: {len(df)} records, batch_size={batch_size}, majority_threshold={majority_threshold}"
+    )
+
     labeling_client = LabelingClient(client, models)
     results = []
 
     # Process in batches for rate limiting
     for i in range(0, len(df), batch_size):
         batch = df.iloc[i : i + batch_size]
+        batch_num = (i // batch_size) + 1
+        total_batches = (len(df) + batch_size - 1) // batch_size
+
+        logger.info(
+            f"Processing batch {batch_num}/{total_batches} (records {i+1}-{min(i + batch_size, len(df))})"
+        )
 
         # Create tasks for this batch
         tasks = [
@@ -119,7 +133,7 @@ async def label_dataset(
         print(f"Processed {min(i + batch_size, len(df))}/{len(df)} records")
         await asyncio.sleep(1)  # Rate limiting
 
-    # Combine original data with predictions
+    logger.info("Labeling complete, formatting results...")
     return format_results(df[context_columns], results, models, majority_threshold)
 
 
@@ -131,8 +145,6 @@ def format_results(
 ) -> pd.DataFrame:
     """Format predictions into a clean DataFrame."""
     result_df = original_df.copy()
-
-    print(predictions)
 
     # Add individual model predictions
     for model in models:
@@ -155,6 +167,18 @@ def format_results(
         ),
         axis=1,
     )
+
+    # Log summary statistics
+    consensus_count = (result_df["majority_vote"] != "NO_CONSENSUS").sum()
+    avg_agreement = result_df[result_df["majority_vote"] != "NO_CONSENSUS"][
+        "agreement_pct"
+    ].mean()
+
+    logger.success(
+        f"Results formatted: {consensus_count}/{len(result_df)} records reached consensus"
+    )
+    if consensus_count > 0:
+        logger.info(f"Average agreement: {avg_agreement:.1%}")
 
     return result_df
 
