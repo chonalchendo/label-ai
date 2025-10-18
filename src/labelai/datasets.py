@@ -88,7 +88,6 @@ class JSONReader(Reader[pl.DataFrame]):
             print("Attempting to read as NDJSON (newline-delimited JSON)")
             df = pl.read_ndjson(path)
 
-        print(df)
         return df
 
 
