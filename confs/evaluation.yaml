@@ -1,6 +1,13 @@
 job:
   KIND: evaluation
+
+  # input parameters
   input_train_df:
     KIND: csv 
     path: data/gold/gold_train_df.csv
+  input_code_to_label:
+    KIND: json_dict
+    path: data/silver/silver_media_code_to_label.json
+
+  # evaluation parameters
   threshold: 2

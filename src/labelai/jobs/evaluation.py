@@ -13,6 +13,7 @@ class EvaluationJob(base.Job):
     KIND: T.Literal["evaluation"] = "evaluation"
 
     input_train_df: datasets.ReaderKind = pdt.Field(..., discriminator="KIND")
+    input_code_to_label: datasets.ReaderKind = pdt.Field(..., discriminator="KIND")
 
     threshold: int
 
@@ -56,3 +57,14 @@ class EvaluationJob(base.Job):
             f"Number of classes with fewer than {self.threshold} documents: {classes_with_less_than_threshold}"
         )
         print(f"Percentage of records with NO_CONCENSUS: {unlabelled_rows_pct}")
+
+        # 6. Get the most common labels
+        code_to_label = self.input_code_to_label.read()
+        labels_df = train_df.filter(
+            pl.col("majority_vote") != "NO_CONCENSUS"
+        ).with_columns(
+            pl.col("majority_vote").replace(code_to_label).alias("label_title")
+        )
+
+        label_freq_df = labels_df["label_title"].value_counts(sort=True)
+        print(label_freq_df)
