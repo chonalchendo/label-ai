@@ -24,6 +24,7 @@ class Reader(
     KIND: str
     path: str
     columns: T.Sequence[str] | None = None
+    limit: int | None = None
 
     @abc.abstractmethod
     def read(self) -> T_Read:
@@ -97,6 +98,17 @@ class ParquetReader(Reader[pl.DataFrame]):
     @T.override
     def read(self) -> pl.DataFrame:
         df = pl.read_parquet(self.path)
+        if self.limit:
+            return df.limit(self.limit)
+        return df
+
+
+class CSVReader(Reader[pl.DataFrame]):
+    KIND: T.Literal["csv"] = "csv"
+
+    @T.override
+    def read(self) -> pl.DataFrame:
+        df = pl.read_csv(self.path)
         return df
 
 
@@ -174,5 +186,12 @@ class JSONWriter(Writer):
             f.write(json.dumps(data))
 
 
-ReaderKind = JSONReader | JSONToDictReader | ExcelReader | ParquetReader | TorchReader
+ReaderKind = (
+    JSONReader
+    | JSONToDictReader
+    | ExcelReader
+    | ParquetReader
+    | TorchReader
+    | CSVReader
+)
 WriterKind = ParquetWriter | TorchWriter | JSONWriter | CSVWriter
