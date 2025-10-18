@@ -1,0 +1,6 @@
+job:
+  KIND: evaluation
+  input_train_df:
+    KIND: csv 
+    path: data/gold/gold_train_df.csv
+  threshold: 2
