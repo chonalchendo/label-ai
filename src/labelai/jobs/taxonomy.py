@@ -14,14 +14,20 @@ class TaxonomyJob(base.Job):
     input: datasets.ReaderKind = pdt.Field(..., discriminator="KIND")
     output_labels: datasets.WriterKind = pdt.Field(..., discriminator="KIND")
     output_label_to_code: datasets.WriterKind = pdt.Field(..., discriminator="KIND")
+    output_code_to_label: datasets.WriterKind = pdt.Field(..., discriminator="KIND")
 
     @T.override
     def run(self) -> base.Locals:
         df = self.input.read()
         df = df.to_pandas()
         dff = self._transform_taxonomy(df)
+
         label_to_code = {
             self._format_taxonomy(path): path[-1][0]
+            for path in dff["taxonomy_path"].to_list()
+        }
+        code_to_label = {
+            path[-1][0]: self._format_taxonomy(path)
             for path in dff["taxonomy_path"].to_list()
         }
         labels = [
@@ -32,6 +38,7 @@ class TaxonomyJob(base.Job):
 
         self.output_labels.write(output_df)
         self.output_label_to_code.write(label_to_code)
+        self.output_code_to_label.write(code_to_label)
 
         return locals()
 

@@ -1,11 +1,18 @@
 job:
   KIND: taxonomy
+
+  # input parameters
   input:
     KIND: parquet
     path: data/bronze/bronze_media_taxonomy.parquet
+  
+  # output paramters
   output_labels:
     KIND: parquet
     path: data/silver/silver_media_labels.parquet
   output_label_to_code:
     KIND: json
     path: data/silver/silver_media_label_to_code.json
+  output_code_to_label:
+    KIND: json
+    path: data/silver/silver_media_code_to_label.json
